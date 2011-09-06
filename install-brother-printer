@@ -194,8 +194,10 @@ if __name__ == "__main__":
     progress.setProgressValue(90)
     progress.setLabelText("Restarting CUPS service...")
 
-    # Restart CUPS service
-    os.system("service cups restart")
+    # Restart CUPS service if OS is Pardus
+    # This is already done by cupswrapper using /etc/init.d/cups
+    if os.path.exists("/etc/pardus-release"):
+        os.system("/bin/service cups restart")
 
     progress.setProgressValue(100)
     progress.setLabelText("Done.")
