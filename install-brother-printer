@@ -79,6 +79,10 @@ def get_progress_dbus_proxy(title, first_label, totalsteps=None):
         exit_with_error("Can't show progress dialog.")
 
 if __name__ == "__main__":
+    cleanup = True
+    if "--keep-tmp" in sys.argv:
+        cleanup = False
+
     progress = get_progress_dbus_proxy("Brother Printer Driver Installer",
                                        "Getting driver list from <b><i>http://welcome.solutions.brother.com</i></b>", "0")
     print "Getting driver list from %s.." % SUPPORT_PAGE
@@ -151,7 +155,10 @@ if __name__ == "__main__":
     progress.setLabelText("Copying files...")
 
     # Find out the cups wrapper script which will be run after installation
-    cupswrapper = "/%s" % glob.glob("usr/local/Brother/cupswrapper/*")[0]
+    cupswrapper = "/%s" % glob.glob("usr/local/Brother/cupswrapper/cupswrapper*")[0]
+
+    # Find out the soname that will be needed in order to satisfy deps
+    libs = os.popen("find -type f | xargs file | grep \"LSB exec\" | gawk -F':' '{ print $1 }' | xargs ldd | grep 'not found'").read().strip().split()
 
     # Copy the files
     for root, dirs, files in os.walk("usr"):
@@ -174,15 +181,15 @@ if __name__ == "__main__":
             print " --> %s" % filepath
             shutil.copy2(os.path.join(root, _file), filepath)
 
-            # Create library symlink
-            if filepath.startswith("/usr/lib32/"):
-                dest = os.path.basename(filepath).rsplit(".", 2)[0]
-                try:
-                    os.unlink(os.path.join("/usr/lib32", dest))
-                except OSError, e:
-                    pass
-                os.symlink(filepath, os.path.join("/usr/lib32", dest))
-
+            # Create library symlinks if needed
+            for lib in libs:
+                if os.path.basename(filepath).startswith(lib) and \
+                   os.path.basename(filepath) != lib:
+                    try:
+                        os.unlink(os.path.join("/usr/lib32", lib))
+                    except OSError, e:
+                        pass
+                    os.symlink(filepath, os.path.join("/usr/lib32", lib))
 
     progress.setProgressValue(75)
     progress.setLabelText("Running post installation scripts...")
@@ -203,11 +210,12 @@ if __name__ == "__main__":
     progress.setLabelText("Done.")
 
     # Cleanup
-    os.chdir("/tmp")
-    try:
-        shutil.rmtree(temp_dir)
-    except OSError:
-        pass
+    if cleanup:
+        os.chdir("/tmp")
+        try:
+            shutil.rmtree(temp_dir)
+        except OSError:
+            pass
 
     # Close progress dialog
     progress.close()
