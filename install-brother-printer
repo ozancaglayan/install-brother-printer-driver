@@ -17,6 +17,7 @@ import subprocess
 from BeautifulSoup import BeautifulSoup
 
 SUPPORT_PAGE = "http://welcome.solutions.brother.com/bsc/public_s/id/linux/en/download_prn.html"
+DEBUG = False
 
 def chunk_read(response, output_file, progress_handle, chunk_size=8192):
     total_size = response.info().getheader('Content-Length').strip()
@@ -43,6 +44,10 @@ def chunk_read(response, output_file, progress_handle, chunk_size=8192):
 def exit_with_error(msg):
     print "Error: %s" % msg
     sys.exit(1)
+
+def debug(msg):
+    if DEBUG:
+        print "Debug: %s" % msg
 
 def ask_for_model(models):
     cmd = ["kdialog", "--title", "Brother Printer Driver Installer",
@@ -83,15 +88,17 @@ if __name__ == "__main__":
     if "--keep-tmp" in sys.argv:
         cleanup = False
 
+    if "--debug" in sys.argv:
+        global DEBUG
+        DEBUG = True
+
     progress = get_progress_dbus_proxy("Brother Printer Driver Installer",
                                        "Getting driver list from <b><i>http://welcome.solutions.brother.com</i></b>", "0")
-    print "Getting driver list from %s.." % SUPPORT_PAGE
     try:
         html_file = urllib2.urlopen(SUPPORT_PAGE)
     except URLError, e:
         exit_with_error("Error: Make sure that the URL '%s' is valid and in-use." % SUPPORT_PAGE)
 
-    print "Generating the list of supported printers.."
     progress.setLabelText("Generating the list of supported printers...")
     soup = BeautifulSoup(html_file.read())
     progress.close()
@@ -134,11 +141,9 @@ if __name__ == "__main__":
     progress.setProgressValue(0)
     progress.setLabelText("Please wait while configuring <b>Brother %s</b>..." % model)
 
-    print temp_dir
-
     # Change to that directory and extract rpms
     os.chdir(temp_dir)
-    os.system("rpm2targz *.rpm")
+    os.system("rpm2targz *.rpm &> /dev/null")
     os.system("rm -f *.rpm")
     tarballs = os.listdir(".")
 
@@ -165,7 +170,7 @@ if __name__ == "__main__":
         for _dir in dirs:
             dirpath = os.path.join("/", root, _dir)
             if not os.path.exists(dirpath):
-                print " --> %s" % dirpath
+                debug(" --> %s" % dirpath)
                 os.makedirs(dirpath)
 
         for _file in files:
@@ -178,7 +183,7 @@ if __name__ == "__main__":
             except OSError, e:
                 pass
 
-            print " --> %s" % filepath
+            debug(" --> %s" % filepath)
             shutil.copy2(os.path.join(root, _file), filepath)
 
             # Create library symlinks if needed
@@ -195,8 +200,8 @@ if __name__ == "__main__":
     progress.setLabelText("Running post installation scripts...")
 
     # Run postinstall stuff
-    os.system("%s -e" % cupswrapper)
-    os.system("%s -i" % cupswrapper)
+    os.system("%s -e &>/dev/null" % cupswrapper)
+    os.system("%s -i &>/dev/null" % cupswrapper)
 
     progress.setProgressValue(90)
     progress.setLabelText("Restarting CUPS service...")
@@ -204,7 +209,7 @@ if __name__ == "__main__":
     # Restart CUPS service if OS is Pardus
     # This is already done by cupswrapper using /etc/init.d/cups
     if os.path.exists("/etc/pardus-release"):
-        os.system("/bin/service cups restart")
+        os.system("/bin/service -q cups restart")
 
     progress.setProgressValue(100)
     progress.setLabelText("Done.")
@@ -216,6 +221,8 @@ if __name__ == "__main__":
             shutil.rmtree(temp_dir)
         except OSError:
             pass
+    else:
+        print temp_dir
 
     # Close progress dialog
     progress.close()
