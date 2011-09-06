@@ -1,0 +1,12 @@
+This simple script dynamically renders a list of Brother printer models
+and installs the selected one from i386 binary RPM's onto your system.
+
+Requirements
+-------------
+
+- Python BeautifulSoup
+- rpm2targz utility
+- tcsh
+- kdialog (For KDE4 user interaction)
+
+Note that this should currently be run as root with xdg-su or *-su.

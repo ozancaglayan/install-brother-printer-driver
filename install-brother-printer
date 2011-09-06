@@ -1,0 +1,212 @@
+#!/usr/bin/python
+# -*- coding: utf-8 -*-
+
+# This is a simple script to install brother printer models
+# The script requires rpm2targz tool.
+
+import os
+import re
+import sys
+import dbus
+import glob
+import time
+import shutil
+import urllib2
+import tempfile
+import subprocess
+from BeautifulSoup import BeautifulSoup
+
+SUPPORT_PAGE = "http://welcome.solutions.brother.com/bsc/public_s/id/linux/en/download_prn.html"
+
+def chunk_read(response, output_file, progress_handle, chunk_size=8192):
+    total_size = response.info().getheader('Content-Length').strip()
+    total_size = int(total_size)
+    bytes_so_far = 0
+
+    output = open(output_file, "w")
+
+    while 1:
+        chunk = response.read(chunk_size)
+        bytes_so_far += len(chunk)
+
+        if not chunk:
+            break
+
+        output.write(chunk)
+
+        percent = float(bytes_so_far) / total_size
+        percent = round(percent*100, 2)
+        progress_handle.setProgressValue(percent)
+
+    output.close()
+
+def exit_with_error(msg):
+    print "Error: %s" % msg
+    sys.exit(1)
+
+def ask_for_model(models):
+    cmd = ["kdialog", "--title", "Brother Printer Driver Installer",
+                      "--menu",  "Please select your printer model:"]
+
+    for index, model in enumerate(models):
+        cmd.extend([str(index+1), model])
+
+    proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    stdout = proc.communicate()[0]
+    if stdout:
+        index = int(stdout.strip())
+        return models[index-1]
+    else:
+        exit_with_error("Can't determine model")
+
+def parse_url(url):
+    # url is 'http://www.brother.com/cgi-bin/agreement/agreement.cgi?dlfile=http://www.brother.com/pub/bsc/linux/dlf/dcp377cwlpr-1.1.2-1.i386.rpm&lang=English_lpr'
+    # output is http://www.brother.com/pub/bsc/linux/dlf/dcp377cwlpr-1.1.2-1.i386.rpm
+    return re.sub("^.*dlfile=(.*)&.*$", "\\1", url)
+
+def get_progress_dbus_proxy(title, first_label, totalsteps=None):
+    cmd = ["kdialog", "--title", title, "--progressbar", first_label]
+    if totalsteps:
+        cmd.append(totalsteps)
+    stdout = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE).stdout
+    if stdout:
+        bus_name, object_path = stdout.read().strip().split()
+        bus = dbus.SessionBus()
+        proxy = bus.get_object(bus_name, object_path)
+        proxy.setProgressValue = lambda x: proxy.get_dbus_method("Set", dbus_interface="org.freedesktop.DBus.Properties")("org.kde.kdialog.ProgressDialog", "value", x)
+        return proxy
+    else:
+        exit_with_error("Can't show progress dialog.")
+
+if __name__ == "__main__":
+    progress = get_progress_dbus_proxy("Brother Printer Driver Installer",
+                                       "Getting driver list from <b><i>http://welcome.solutions.brother.com</i></b>", "0")
+    print "Getting driver list from %s.." % SUPPORT_PAGE
+    try:
+        html_file = urllib2.urlopen(SUPPORT_PAGE)
+    except URLError, e:
+        exit_with_error("Error: Make sure that the URL '%s' is valid and in-use." % SUPPORT_PAGE)
+
+    print "Generating the list of supported printers.."
+    progress.setLabelText("Generating the list of supported printers...")
+    soup = BeautifulSoup(html_file.read())
+    progress.close()
+
+    # Parse the IndexListB <div> to fetch the supported models
+    models = [drv.string for drv in \
+              soup.find("div", id="IndexListB").findAll("a", href=re.compile('^#[DMHF].*'))]
+
+    # Generate a dictionary model->driver
+    model_dict = dict([(model,model) for model in models])
+
+    # Parse the list of alternative drivers and update the dictionary
+    for alt_driver in soup.findAll("div", id="AltDriver"):
+        children = alt_driver.findChildren(name="a")
+        for_model = children[0].get("name")
+        use_this = children[1].b.string
+        model_dict[for_model] = use_this
+
+    # Let the user pick the printer model and find out the driver
+    model = ask_for_model(sorted(model_dict.keys()))
+    driver = model_dict[model]
+
+    # Determine what to download for this driver
+    urls = [parse_url(a_tag.get("href")) for a_tag in \
+            soup.find("div", id="DownloadList").find("a", attrs={"name":driver}).findNext().findNext().findAll("a", href=re.compile("^.*\.i386\.rpm"))]
+
+    # Create a temporary directory
+    temp_dir = tempfile.mkdtemp(prefix="brother-")
+
+    # Download them
+    progress = get_progress_dbus_proxy("Brother Printer Driver Installer",
+                                       "Preparing to download the drivers...")
+    for url in urls:
+        progress.setProgressValue(0)
+        progress.setLabelText("Downloading <b><i>%s</i></b>..." % url)
+        response = urllib2.urlopen(url)
+        output_file = os.path.join(temp_dir, os.path.basename(url))
+        chunk_read(response, output_file, progress)
+
+    progress.setProgressValue(0)
+    progress.setLabelText("Please wait while configuring <b>Brother %s</b>..." % model)
+
+    print temp_dir
+
+    # Change to that directory and extract rpms
+    os.chdir(temp_dir)
+    os.system("rpm2targz *.rpm")
+    os.system("rm -f *.rpm")
+    tarballs = os.listdir(".")
+
+    os.makedirs("install")
+    os.chdir("install")
+
+    progress.setProgressValue(25)
+    progress.setLabelText("Unpacking drivers...")
+
+    for tarball in tarballs:
+        os.system("tar xvf ../%s" % tarball)
+
+    progress.setProgressValue(50)
+    progress.setLabelText("Copying files...")
+
+    # Find out the cups wrapper script which will be run after installation
+    cupswrapper = "/%s" % glob.glob("usr/local/Brother/cupswrapper/*")[0]
+
+    # Copy the files
+    for root, dirs, files in os.walk("usr"):
+        for _dir in dirs:
+            dirpath = os.path.join("/", root, _dir)
+            if not os.path.exists(dirpath):
+                print " --> %s" % dirpath
+                os.makedirs(dirpath)
+
+        for _file in files:
+            filepath = os.path.join("/", root, _file)
+            if filepath.startswith("/usr/lib/"):
+                # Install to lib32
+                filepath = filepath.replace("/usr/lib/", "/usr/lib32/")
+            try:
+                os.unlink(filepath)
+            except OSError, e:
+                pass
+
+            print " --> %s" % filepath
+            shutil.copy2(os.path.join(root, _file), filepath)
+
+            # Create library symlink
+            if filepath.startswith("/usr/lib32/"):
+                dest = os.path.basename(filepath).rsplit(".", 2)[0]
+                try:
+                    os.unlink(os.path.join("/usr/lib32", dest))
+                except OSError, e:
+                    pass
+                os.symlink(filepath, os.path.join("/usr/lib32", dest))
+
+
+    progress.setProgressValue(75)
+    progress.setLabelText("Running post installation scripts...")
+
+    # Run postinstall stuff
+    os.system("%s -e" % cupswrapper)
+    os.system("%s -i" % cupswrapper)
+
+    progress.setProgressValue(90)
+    progress.setLabelText("Restarting CUPS service...")
+
+    # Restart CUPS service
+    os.system("service cups restart")
+
+    progress.setProgressValue(100)
+    progress.setLabelText("Done.")
+
+    # Cleanup
+    os.chdir("/tmp")
+    try:
+        shutil.rmtree(temp_dir)
+    except OSError:
+        pass
+
+    # Close progress dialog
+    progress.close()
+
