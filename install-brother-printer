@@ -160,13 +160,19 @@ if __name__ == "__main__":
     progress.setLabelText("Copying files...")
 
     # Find out the cups wrapper script which will be run after installation
-    cupswrapper = "/%s" % glob.glob("usr/local/Brother/cupswrapper/cupswrapper*")[0]
+    candidates = glob.glob("usr/local/Brother/cupswrapper/cupswrapper*")
+    candidates.extend(glob.glob("opt/brother/Printers/*/cupswrapper/cupswrapper*"))
+
+    if candidates:
+        cupswrapper = "/%s" % candidates[0]
+    else:
+        cupswrapper = None
 
     # Find out the soname that will be needed in order to satisfy deps
     libs = os.popen("find -type f | xargs file | grep \"LSB exec\" | gawk -F':' '{ print $1 }' | xargs ldd | grep 'not found'").read().strip().split()
 
     # Copy the files
-    for root, dirs, files in os.walk("usr"):
+    for root, dirs, files in os.walk("."):
         for _dir in dirs:
             dirpath = os.path.join("/", root, _dir)
             if not os.path.exists(dirpath):
@@ -199,9 +205,10 @@ if __name__ == "__main__":
     progress.setProgressValue(75)
     progress.setLabelText("Running post installation scripts...")
 
-    # Run postinstall stuff
-    os.system("%s -e &>/dev/null" % cupswrapper)
-    os.system("%s -i &>/dev/null" % cupswrapper)
+    if cupswrapper:
+        # Run postinstall stuff
+        os.system("%s -e &>/dev/null" % cupswrapper)
+        os.system("%s -i &>/dev/null" % cupswrapper)
 
     progress.setProgressValue(90)
     progress.setLabelText("Restarting CUPS service...")
