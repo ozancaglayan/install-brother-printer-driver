@@ -12,6 +12,7 @@ Requirements
 - rpm2targz utility (optional, if rpm is not found on your system)
 - tcsh (needed by many Brother filters)
 - kdialog (For KDE4 user interaction)
+- dbus-python (For kdialog interaction over D-Bus)
 
 Note that this should currently be run as root with xdg-su or something
 similar like xdg-su.
