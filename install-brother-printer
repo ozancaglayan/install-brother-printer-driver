@@ -268,6 +268,8 @@ def main(args):
             os.system("%s -e &>/dev/null" % cupswrapper)
             os.system("%s -i &>/dev/null" % cupswrapper)
 
+    # Run ldconfig in any case
+    os.system("ldconfig -X &> /dev/null")
 
     # Restart CUPS service if OS is Pardus
     # This is already done by cupswrapper using /etc/init.d/cups
