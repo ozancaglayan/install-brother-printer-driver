@@ -18,6 +18,32 @@ from BeautifulSoup import BeautifulSoup
 SUPPORT_PAGE = "http://welcome.solutions.brother.com/bsc/public_s/id/linux/en/download_prn.html"
 DEBUG = False
 
+LICENSE = """\
+This Agreement provides terms and conditions for license grant from Brother
+Industries, Ltd ("Broher").  Brother, who owns all copyrights to the software
+that is distributed with this Agreement ("Software") to recipients thereof
+("User"), for use of the Software. User shall have the right to use the
+Software only in accordance with the terms and conditions of this Agreement.
+Any use by User of the Software shall be deemed as its agreement hereto.
+
+Brother retains any and all copyrights to the Software. In no case this
+Agreement shall be construed to assign or otherwise transfer from Brother to
+User any copyrights or other intellectual property rights to whole or any part
+of the Software.
+
+Brother grants User a non-exclusive license: to reproduce and/or distribute
+(via Internet or in any other manner) the Software. Further, Brother grants
+User a non-exclusive license to modify, alter, translate or otherwise prepare
+derivative works of the Software and to reproduce and distribute (via Internet
+or in any other manner) such modification, alteration, translation or other
+derivative works for any purpose.
+
+The license of the Software from Brother hereunder is granted "AS IS." BROTHER
+HEREBY DISCLAIMS ANY WARRANTIES WITH RESPECT TO THE SOFTWARE, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO WARRANTY FOR THE QUALITY,
+MERCHANTABILITY.
+"""
+
 def chunk_read(_response, _output_file, progress_handle, chunk_size=8192):
     total_size = _response.info().getheader('Content-Length').strip()
     total_size = int(total_size)
