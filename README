@@ -1,12 +1,21 @@
 This simple script dynamically renders a list of Brother printer models
 and installs the selected one from i386 binary RPM's onto your system.
 
+It's basically designed for use with Pardus (http://www.pardus.org.tr/eng)
+but it also checks for the existence of RPM utility and uses that for
+installation.
+
 Requirements
 -------------
 
 - Python BeautifulSoup
-- rpm2targz utility
-- tcsh
+- rpm2targz utility (optional, if rpm is not found on your system)
+- tcsh (needed by many Brother filters)
 - kdialog (For KDE4 user interaction)
 
-Note that this should currently be run as root with xdg-su or *-su.
+Note that this should currently be run as root with xdg-su or something
+similar like xdg-su.
+
+Authors
+--------
+Ozan Çağlayan, <ozan_at_pardus.org.tr>
