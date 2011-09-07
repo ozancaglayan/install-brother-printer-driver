@@ -9,7 +9,6 @@ import re
 import sys
 import dbus
 import glob
-import time
 import shutil
 import urllib2
 import tempfile
@@ -19,15 +18,15 @@ from BeautifulSoup import BeautifulSoup
 SUPPORT_PAGE = "http://welcome.solutions.brother.com/bsc/public_s/id/linux/en/download_prn.html"
 DEBUG = False
 
-def chunk_read(response, output_file, progress_handle, chunk_size=8192):
-    total_size = response.info().getheader('Content-Length').strip()
+def chunk_read(_response, _output_file, progress_handle, chunk_size=8192):
+    total_size = _response.info().getheader('Content-Length').strip()
     total_size = int(total_size)
     bytes_so_far = 0
 
-    output = open(output_file, "w")
+    output = open(_output_file, "w")
 
     while 1:
-        chunk = response.read(chunk_size)
+        chunk = _response.read(chunk_size)
         bytes_so_far += len(chunk)
 
         if not chunk:
@@ -56,13 +55,18 @@ def ask_for_model(models):
     for index, model in enumerate(models):
         cmd.extend([str(index+1), model])
 
-    proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    stdout = proc.communicate()[0]
+    stdout = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE).stdout
     if stdout:
-        index = int(stdout.strip())
+        index = int(stdout.read().strip())
         return models[index-1]
     else:
         exit_with_error("Can't determine model")
+
+def show_file_list(file_list):
+    cmd = ["kdialog", "--title", "List of succesfully installed files",
+                      "--textbox", file_list, "500", "400"]
+
+    subprocess.call(cmd)
 
 def parse_url(url):
     # url is 'http://www.brother.com/cgi-bin/agreement/agreement.cgi?dlfile=http://www.brother.com/pub/bsc/linux/dlf/dcp377cwlpr-1.1.2-1.i386.rpm&lang=English_lpr'
@@ -83,12 +87,12 @@ def get_progress_dbus_proxy(title, first_label, totalsteps=None):
     else:
         exit_with_error("Can't show progress dialog.")
 
-if __name__ == "__main__":
-    cleanup = True
-    if "--keep-tmp" in sys.argv:
-        cleanup = False
+def main(args):
+    clean_up = True
+    if "--keep-tmp" in args:
+        clean_up = False
 
-    if "--debug" in sys.argv:
+    if "--debug" in args:
         global DEBUG
         DEBUG = True
 
@@ -96,7 +100,7 @@ if __name__ == "__main__":
                                        "Getting driver list from <b><i>http://welcome.solutions.brother.com</i></b>", "0")
     try:
         html_file = urllib2.urlopen(SUPPORT_PAGE)
-    except URLError, e:
+    except urllib2.URLError:
         exit_with_error("Error: Make sure that the URL '%s' is valid and in-use." % SUPPORT_PAGE)
 
     progress.setLabelText("Generating the list of supported printers...")
@@ -108,7 +112,7 @@ if __name__ == "__main__":
               soup.find("div", id="IndexListB").findAll("a", href=re.compile('^#[DMHF].*'))]
 
     # Generate a dictionary model->driver
-    model_dict = dict([(model,model) for model in models])
+    model_dict = dict([(model, model) for model in models])
 
     # Parse the list of alternative drivers and update the dictionary
     for alt_driver in soup.findAll("div", id="AltDriver"):
@@ -139,90 +143,121 @@ if __name__ == "__main__":
         chunk_read(response, output_file, progress)
 
     progress.setProgressValue(0)
-    progress.setLabelText("Please wait while configuring <b>Brother %s</b>..." % model)
+    progress.setLabelText("Please wait while installing <b>Brother %s</b> driver..." % model)
 
-    # Change to that directory and extract rpms
     os.chdir(temp_dir)
-    os.system("rpm2targz *.rpm &> /dev/null")
-    os.system("rm -f *.rpm")
-    tarballs = os.listdir(".")
+    files = None
 
-    os.makedirs("install")
-    os.chdir("install")
+    # Make sure /var/spool/lpd exists
+    if not os.path.exists("/var/spool/lpd"):
+        os.makedirs("/var/spool/lpd")
 
-    progress.setProgressValue(25)
-    progress.setLabelText("Unpacking drivers...")
+    # Either install them through rpm if it exists or unpack them to the system
+    if os.path.exists("/var/lib/rpm"):
+        # RPM is found
+        cmd = ["rpm", "-v", "-i", "--nodeps"]
+        rpms = [os.path.basename(url) for url in urls]
+        cmd.extend(rpms)
+        subprocess.call(cmd)
 
-    for tarball in tarballs:
-        os.system("tar xvf ../%s" % tarball)
+        # Get the list of files that are installed
+        cmd = ["rpm", "-ql"]
+        cmd.extend([rpm.replace(".rpm", "") for rpm in rpms])
+        files = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE).stdout.read().split("\n")
 
-    progress.setProgressValue(50)
-    progress.setLabelText("Copying files...")
+        if files:
+            open(os.path.join(temp_dir, "filelist"), "w").write("\n".join(files))
+            show_file_list(os.path.join(temp_dir, "filelist"))
 
-    # Find out the cups wrapper script which will be run after installation
-    candidates = glob.glob("usr/local/Brother/cupswrapper/cupswrapper*")
-    candidates.extend(glob.glob("opt/brother/Printers/*/cupswrapper/cupswrapper*"))
+        # Move the libraries into /usr/lib32 if it exists
+        if os.path.exists("/usr/lib32"):
+            pass
 
-    if candidates:
-        cupswrapper = "/%s" % candidates[0]
     else:
-        cupswrapper = None
+        # Hacky way
+        os.system("rpm2targz *.rpm &> /dev/null")
+        os.system("rm -f *.rpm")
+        tarballs = os.listdir(".")
 
-    # Find out the soname that will be needed in order to satisfy deps
-    libs = os.popen("find -type f | xargs file | grep \"LSB exec\" | gawk -F':' '{ print $1 }' | xargs ldd | grep 'not found'").read().strip().split()
+        os.makedirs("install")
+        os.chdir("install")
 
-    # Copy the files
-    for root, dirs, files in os.walk("."):
-        for _dir in dirs:
-            dirpath = os.path.join("/", root, _dir)
-            if not os.path.exists(dirpath):
-                debug(" --> %s" % dirpath)
-                os.makedirs(dirpath)
+        progress.setProgressValue(25)
+        progress.setLabelText("Unpacking drivers...")
 
-        for _file in files:
-            filepath = os.path.join("/", root, _file)
-            if filepath.startswith("/usr/lib/"):
-                # Install to lib32
-                filepath = filepath.replace("/usr/lib/", "/usr/lib32/")
-            try:
-                os.unlink(filepath)
-            except OSError, e:
-                pass
+        for tarball in tarballs:
+            os.system("tar xvf ../%s" % tarball)
 
-            debug(" --> %s" % filepath)
-            shutil.copy2(os.path.join(root, _file), filepath)
+        progress.setProgressValue(50)
+        progress.setLabelText("Copying files...")
 
-            # Create library symlinks if needed
-            for lib in libs:
-                if os.path.basename(filepath).startswith(lib) and \
-                   os.path.basename(filepath) != lib:
-                    try:
-                        os.unlink(os.path.join("/usr/lib32", lib))
-                    except OSError, e:
-                        pass
-                    os.symlink(filepath, os.path.join("/usr/lib32", lib))
+        # Find out the cups wrapper script which will be run after installation
+        candidates = glob.glob("usr/local/Brother/cupswrapper/cupswrapper*")
+        candidates.extend(glob.glob("opt/brother/Printers/*/cupswrapper/cupswrapper*"))
 
-    progress.setProgressValue(75)
-    progress.setLabelText("Running post installation scripts...")
+        if candidates:
+            cupswrapper = "/%s" % candidates[0]
+        else:
+            cupswrapper = None
 
-    if cupswrapper:
-        # Run postinstall stuff
-        os.system("%s -e &>/dev/null" % cupswrapper)
-        os.system("%s -i &>/dev/null" % cupswrapper)
+        # Find out the soname that will be needed in order to satisfy deps
+        libs = os.popen("find -type f | xargs file | grep \"LSB exec\" | gawk -F':' '{ print $1 }' | xargs ldd | grep 'not found'").read().strip().split()
 
-    progress.setProgressValue(90)
-    progress.setLabelText("Restarting CUPS service...")
+        # Copy the files
+        for root, dirs, files in os.walk("."):
+            for _dir in dirs:
+                dirpath = os.path.join("/", root, _dir)
+                if not os.path.exists(dirpath):
+                    debug(" --> %s" % dirpath)
+                    os.makedirs(dirpath)
+
+            for _file in files:
+                filepath = os.path.join("/", root, _file)
+                if filepath.startswith("/usr/lib/"):
+                    # Install to lib32
+                    filepath = filepath.replace("/usr/lib/", "/usr/lib32/")
+                try:
+                    os.unlink(filepath)
+                except OSError:
+                    pass
+
+                debug(" --> %s" % filepath)
+                shutil.copy2(os.path.join(root, _file), filepath)
+
+                # Create library symlinks if needed
+                for lib in libs:
+                    if os.path.basename(filepath).startswith(lib) and \
+                       os.path.basename(filepath) != lib:
+                        try:
+                            os.unlink(os.path.join("/usr/lib32", lib))
+                        except OSError:
+                            pass
+                        os.symlink(filepath, os.path.join("/usr/lib32", lib))
+
+        progress.setProgressValue(75)
+        progress.setLabelText("Running post installation scripts...")
+
+        if cupswrapper:
+            # Run postinstall stuff
+            os.system("%s -e &>/dev/null" % cupswrapper)
+            os.system("%s -i &>/dev/null" % cupswrapper)
+
 
     # Restart CUPS service if OS is Pardus
     # This is already done by cupswrapper using /etc/init.d/cups
     if os.path.exists("/etc/pardus-release"):
+        progress.setLabelText("Restarting CUPS service...")
         os.system("/bin/service -q cups restart")
+        progress.setProgressValue(90)
 
     progress.setProgressValue(100)
     progress.setLabelText("Done.")
 
+    # Close progress dialog
+    progress.close()
+
     # Cleanup
-    if cleanup:
+    if clean_up:
         os.chdir("/tmp")
         try:
             shutil.rmtree(temp_dir)
@@ -231,6 +266,5 @@ if __name__ == "__main__":
     else:
         print temp_dir
 
-    # Close progress dialog
-    progress.close()
-
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))
