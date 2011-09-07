@@ -16,6 +16,11 @@ Requirements
 Note that this should currently be run as root with xdg-su or something
 similar like xdg-su.
 
+License
+--------
+
+GPLv2, see COPYING.
+
 Authors
 --------
 Ozan Çağlayan, <ozan_at_pardus.org.tr>
