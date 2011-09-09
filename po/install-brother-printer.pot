@@ -1,0 +1,67 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: PACKAGE VERSION\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2011-09-09 09:18+0300\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=CHARSET\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#: install-brother-printer:68 install-brother-printer:118
+#: install-brother-printer:155
+msgid "Brother Printer Driver Installer"
+msgstr ""
+
+#: install-brother-printer:69
+msgid "Please select your printer model:"
+msgstr ""
+
+#: install-brother-printer:79
+msgid "Can't determine model"
+msgstr ""
+
+#: install-brother-printer:83
+msgid "List of succesfully installed files"
+msgstr ""
+
+#: install-brother-printer:105
+msgid "Can't show progress dialog."
+msgstr ""
+
+#: install-brother-printer:119
+msgid ""
+"Getting driver list from <b><i>http://welcome.solutions.brother.com</i></b>"
+msgstr ""
+
+#: install-brother-printer:123
+#, python-format
+msgid "Error: Make sure that the URL '%s' is valid and in-use."
+msgstr ""
+
+#: install-brother-printer:125
+msgid "Generating the list of supported printers..."
+msgstr ""
+
+#: install-brother-printer:159
+#, python-format
+msgid "Downloading <b><i>%s</i></b>..."
+msgstr ""
+
+#: install-brother-printer:165
+#, python-format
+msgid "Please wait while installing <b>Brother %s</b> driver..."
+msgstr ""
+
+#: install-brother-printer:211
+msgid "Restarting CUPS service..."
+msgstr ""

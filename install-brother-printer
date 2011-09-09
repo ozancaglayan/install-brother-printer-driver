@@ -1,15 +1,12 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 
-# This is a simple script to install brother printer models
-# The script requires rpm2targz tool.
-
 import os
 import re
 import sys
 import dbus
-import glob
 import shutil
+import gettext
 import urllib2
 import tempfile
 import subprocess
@@ -19,6 +16,14 @@ SUPPORT_PAGE = "http://welcome.solutions.brother.com/bsc/public_s/id/linux/en/do
 LICENSE_FILE = "/usr/share/brother-driver-installer/LICENSE.driver"
 DEBUG = False
 
+########
+# i18n #
+########
+
+__trans = gettext.translation('install-brother-printer', fallback=True)
+_ = __trans.ugettext
+
+
 def find_binary(name):
     """Search for a binary in $PATH and in /opt."""
     for path in os.environ["PATH"].split(":"):
@@ -26,6 +31,7 @@ def find_binary(name):
             return os.path.join(path, name)
 
 def chunk_read(_response, _output_file, progress_handle, chunk_size=8192):
+    """Read and write down the downloaded file."""
     total_size = _response.info().getheader('Content-Length').strip()
     total_size = int(total_size)
     bytes_so_far = 0
@@ -48,16 +54,19 @@ def chunk_read(_response, _output_file, progress_handle, chunk_size=8192):
     output.close()
 
 def exit_with_error(msg):
+    """Exit with an error message."""
     print "Error: %s" % msg
     sys.exit(1)
 
 def debug(msg):
+    """Dump a debug message."""
     if DEBUG:
         print "Debug: %s" % msg
 
 def ask_for_model(models):
-    cmd = ["kdialog", "--title", "Brother Printer Driver Installer",
-                      "--menu",  "Please select your printer model:"]
+    """Ask for printer model."""
+    cmd = ["kdialog", "--title", _("Brother Printer Driver Installer"),
+                      "--menu",  _("Please select your printer model:")]
 
     for index, model in enumerate(models):
         cmd.extend([str(index+1), model])
@@ -67,21 +76,21 @@ def ask_for_model(models):
         index = int(stdout.read().strip())
         return models[index-1]
     else:
-        exit_with_error("Can't determine model")
+        exit_with_error(_("Can't determine model"))
 
 def show_file_list(file_list):
-    cmd = ["kdialog", "--title", "List of succesfully installed files",
+    """Show installed file list."""
+    cmd = ["kdialog", "--title", _("List of succesfully installed files"),
                       "--textbox", file_list, "500", "400"]
 
     subprocess.call(cmd)
 
 def parse_url(url):
-    # url is 'http://www.brother.com/cgi-bin/agreement/agreement.cgi?dlfile=
-    # http://www.brother.com/pub/bsc/linux/dlf/dcp377cwlpr-1.1.2-1.i386.rpm&lang=English_lpr'
-    # output is http://www.brother.com/pub/bsc/linux/dlf/dcp377cwlpr-1.1.2-1.i386.rpm
+    """Parse URL to find out the download URL."""
     return re.sub("^.*dlfile=(.*)&.*$", "\\1", url)
 
 def get_progress_dbus_proxy(title, first_label, totalsteps=None):
+    """Get a D-Bus proxy for kdialog proxy."""
     cmd = ["kdialog", "--title", title, "--progressbar", first_label]
     if totalsteps:
         cmd.append(totalsteps)
@@ -93,9 +102,11 @@ def get_progress_dbus_proxy(title, first_label, totalsteps=None):
         proxy.setProgressValue = lambda x: proxy.get_dbus_method("Set", dbus_interface="org.freedesktop.DBus.Properties")("org.kde.kdialog.ProgressDialog", "value", x)
         return proxy
     else:
-        exit_with_error("Can't show progress dialog.")
+        exit_with_error(_("Can't show progress dialog."))
 
 def main(args):
+    """Main program."""
+
     clean_up = True
     if "--keep-tmp" in args:
         clean_up = False
@@ -104,14 +115,14 @@ def main(args):
         global DEBUG
         DEBUG = True
 
-    progress = get_progress_dbus_proxy("Brother Printer Driver Installer",
-                                       "Getting driver list from <b><i>http://welcome.solutions.brother.com</i></b>", "0")
+    progress = get_progress_dbus_proxy(_("Brother Printer Driver Installer"),
+                                       _("Getting driver list from <b><i>http://welcome.solutions.brother.com</i></b>"), "0")
     try:
         html_file = urllib2.urlopen(SUPPORT_PAGE)
     except urllib2.URLError:
-        exit_with_error("Error: Make sure that the URL '%s' is valid and in-use." % SUPPORT_PAGE)
+        exit_with_error(_("Error: Make sure that the URL '%s' is valid and in-use.") % SUPPORT_PAGE)
 
-    progress.setLabelText("Generating the list of supported printers...")
+    progress.setLabelText(_("Generating the list of supported printers..."))
     soup = BeautifulSoup(html_file.read())
     progress.close()
 
@@ -141,17 +152,17 @@ def main(args):
     temp_dir = tempfile.mkdtemp(prefix="brother-")
 
     # Download them
-    progress = get_progress_dbus_proxy("Brother Printer Driver Installer",
-                                       "Preparing to download the drivers...")
+    progress = get_progress_dbus_proxy(_("Brother Printer Driver Installer"), "")
+
     for url in urls:
         progress.setProgressValue(0)
-        progress.setLabelText("Downloading <b><i>%s</i></b>..." % url)
+        progress.setLabelText(_("Downloading <b><i>%s</i></b>...") % url)
         response = urllib2.urlopen(url)
         output_file = os.path.join(temp_dir, os.path.basename(url))
         chunk_read(response, output_file, progress)
 
     progress.setProgressValue(0)
-    progress.setLabelText("Please wait while installing <b>Brother %s</b> driver..." % model)
+    progress.setLabelText(_("Please wait while installing <b>Brother %s</b> driver...") % model)
 
     os.chdir(temp_dir)
     files = None
@@ -180,8 +191,8 @@ def main(args):
         files = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE).stdout.read().split("\n")
 
         if files:
-            open(os.path.join(temp_dir, "filelist"), "w").write("\n".join(files))
-            show_file_list(os.path.join(temp_dir, "filelist"))
+            open(os.path.join(temp_dir, "files"), "w").write("\n".join(files))
+            show_file_list(os.path.join(temp_dir, "files"))
 
     elif dpkg:
         # TODO: Add dpkg support
@@ -189,6 +200,7 @@ def main(args):
 
     else:
         # No way to install the drivers, quiting.
+        pass
 
     # Run ldconfig in any case
     os.system("ldconfig -X &> /dev/null")
@@ -196,7 +208,7 @@ def main(args):
     # Restart CUPS service if OS is Pardus
     # This is already done by cupswrapper using /etc/init.d/cups
     if os.path.exists("/etc/pardus-release"):
-        progress.setLabelText("Restarting CUPS service...")
+        progress.setLabelText(_("Restarting CUPS service..."))
         os.system("/bin/service -q cups restart")
         progress.setProgressValue(100)
 
