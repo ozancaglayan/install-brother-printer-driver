@@ -1,3 +1,0 @@
-#!/bin/bash
-
-xgettext --from-code=UTF-8 --language=Python --keyword=_ --output=po/install-brother-printer.pot install-brother-printer
