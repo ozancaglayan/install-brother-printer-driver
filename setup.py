@@ -9,15 +9,50 @@
 # option) any later version. Please read the COPYING file.
 
 import os
-import sys
 import glob
 import shutil
 
 from distutils.core import setup
+from distutils.command.build import build
+from distutils.command.install import install
 
-# Call distutils.setup
+PROJECT = "install-brother-printer"
 
-setup(name="brother-driver-installer",
+class BuildPo(build):
+    def run(self):
+        build.run(self)
+        self.build_po()
+
+    def build_po(self):
+        # Generate POT file
+        os.system("xgettext -L Python --keyword=_ --output=po/%s.pot %s" % (PROJECT, PROJECT))
+
+        # Update PO files
+        for item in glob.glob1("po", "*.po"):
+            print "Updating %s..." % item
+            os.system("msgmerge --update --backup=never --no-wrap --sort-by-file po/%s po/%s.pot" % (item, PROJECT))
+
+class Install(install):
+    def run(self):
+        install.run(self)
+        self.install_l10n()
+
+    def install_l10n(self):
+        for po_file in glob.glob1("po", "*.po"):
+            lang = po_file[:-3]
+            print "Installing '%s' translations..." % lang
+            os.system("msgfmt po/%s.po -o po/%s.mo" % (lang, lang))
+
+            if not self.root:
+                self.root = "/"
+
+            dest = os.path.join(self.root, "usr/share/locale/%s/LC_MESSAGES" % lang)
+            if not os.path.exists(dest):
+                os.makedirs(dest)
+
+            shutil.copy("po/%s.mo" % lang, os.path.join(dest, "%s.mo" % PROJECT))
+
+setup(name=PROJECT,
       version="0.1",
       description="Simple tool to install Brother printer drivers",
       long_description="A GUI tool for installing Brother printer drivers over the Internet",
@@ -27,5 +62,8 @@ setup(name="brother-driver-installer",
       license="GPLv2",
       platforms=["Linux"],
       scripts=["install-brother-printer"],
+      cmdclass = {'build_po'    : BuildPo,
+                  'install'     : Install,
+                 },
       data_files=[("/usr/share/brother-driver-installer", ["LICENSE.driver"]),],
       )
