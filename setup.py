@@ -30,7 +30,7 @@ class BuildPo(build):
         # Update PO files
         for item in glob.glob1("po", "*.po"):
             print "Updating %s..." % item
-            os.system("msgmerge --update --backup=never --no-wrap --sort-by-file po/%s po/%s.pot" % (item, PROJECT))
+            os.system("msgmerge --update --backup=off --no-wrap --sort-by-file po/%s po/%s.pot" % (item, PROJECT))
 
 class Install(install):
     def run(self):
@@ -51,6 +51,7 @@ class Install(install):
                 os.makedirs(dest)
 
             shutil.copy("po/%s.mo" % lang, os.path.join(dest, "%s.mo" % PROJECT))
+            os.unlink("po/%s.mo" % lang)
 
 setup(name=PROJECT,
       version="0.1",
