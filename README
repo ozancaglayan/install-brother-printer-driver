@@ -9,7 +9,6 @@ Requirements
 -------------
 
 - Python BeautifulSoup
-- rpm2targz utility (optional, if rpm is not found on your system)
 - tcsh (needed by many Brother filters)
 - kdialog (For KDE4 user interaction)
 - dbus-python (For kdialog interaction over D-Bus)

@@ -16,8 +16,14 @@ import subprocess
 from BeautifulSoup import BeautifulSoup
 
 SUPPORT_PAGE = "http://welcome.solutions.brother.com/bsc/public_s/id/linux/en/download_prn.html"
-DEBUG = False
 LICENSE_FILE = "/usr/share/brother-driver-installer/LICENSE.driver"
+DEBUG = False
+
+def find_binary(name):
+    """Search for a binary in $PATH and in /opt."""
+    for path in os.environ["PATH"].split(":"):
+        if os.path.exists(os.path.join(path, name)):
+            return os.path.join(path, name)
 
 def chunk_read(_response, _output_file, progress_handle, chunk_size=8192):
     total_size = _response.info().getheader('Content-Length').strip()
@@ -70,7 +76,8 @@ def show_file_list(file_list):
     subprocess.call(cmd)
 
 def parse_url(url):
-    # url is 'http://www.brother.com/cgi-bin/agreement/agreement.cgi?dlfile=http://www.brother.com/pub/bsc/linux/dlf/dcp377cwlpr-1.1.2-1.i386.rpm&lang=English_lpr'
+    # url is 'http://www.brother.com/cgi-bin/agreement/agreement.cgi?dlfile=
+    # http://www.brother.com/pub/bsc/linux/dlf/dcp377cwlpr-1.1.2-1.i386.rpm&lang=English_lpr'
     # output is http://www.brother.com/pub/bsc/linux/dlf/dcp377cwlpr-1.1.2-1.i386.rpm
     return re.sub("^.*dlfile=(.*)&.*$", "\\1", url)
 
@@ -153,16 +160,22 @@ def main(args):
     if not os.path.exists("/var/spool/lpd"):
         os.makedirs("/var/spool/lpd")
 
-    # Either install them through rpm if it exists or unpack them to the system
-    if os.path.exists("/var/lib/rpm"):
+    # Find RPM/DPKG
+    rpm = find_binary("rpm")
+    dpkg = find_binary("dpkg")
+    if not rpm and os.path.exists("/opt/rpm/bin/rpm"):
+        # Pardus installs RPM to /opt for avoiding confusion
+        rpm = "/opt/rpm/bin/rpm"
+
+    if rpm:
         # RPM is found
-        cmd = ["rpm", "--force", "-v", "-i", "--nodeps"]
+        cmd = [rpm, "--force", "-v", "-i", "--nodeps"]
         rpms = [os.path.basename(url) for url in urls]
         cmd.extend(rpms)
         subprocess.call(cmd)
 
         # Get the list of files that are installed
-        cmd = ["rpm", "-ql"]
+        cmd = [rpm, "-ql"]
         cmd.extend([rpm.replace(".rpm", "") for rpm in rpms])
         files = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE).stdout.read().split("\n")
 
@@ -170,74 +183,12 @@ def main(args):
             open(os.path.join(temp_dir, "filelist"), "w").write("\n".join(files))
             show_file_list(os.path.join(temp_dir, "filelist"))
 
+    elif dpkg:
+        # TODO: Add dpkg support
+        pass
+
     else:
-        # Hacky way
-        os.system("rpm2targz *.rpm &> /dev/null")
-        os.system("rm -f *.rpm")
-        tarballs = os.listdir(".")
-
-        os.makedirs("install")
-        os.chdir("install")
-
-        progress.setProgressValue(25)
-        progress.setLabelText("Unpacking drivers...")
-
-        for tarball in tarballs:
-            os.system("tar xvf ../%s" % tarball)
-
-        progress.setProgressValue(50)
-        progress.setLabelText("Copying files...")
-
-        # Find out the cups wrapper script which will be run after installation
-        candidates = glob.glob("usr/local/Brother/cupswrapper/cupswrapper*")
-        candidates.extend(glob.glob("opt/brother/Printers/*/cupswrapper/cupswrapper*"))
-
-        if candidates:
-            cupswrapper = "/%s" % candidates[0]
-        else:
-            cupswrapper = None
-
-        # Find out the soname that will be needed in order to satisfy deps
-        libs = os.popen("find -type f | xargs file | grep \"LSB exec\" | gawk -F':' '{ print $1 }' | xargs ldd | grep 'not found'").read().strip().split()
-
-        # Copy the files
-        for root, dirs, files in os.walk("."):
-            for _dir in dirs:
-                dirpath = os.path.join("/", root, _dir)
-                if not os.path.exists(dirpath):
-                    debug(" --> %s" % dirpath)
-                    os.makedirs(dirpath)
-
-            for _file in files:
-                filepath = os.path.join("/", root, _file)
-                if filepath.startswith("/usr/lib/"):
-                    # Install to lib32
-                    filepath = filepath.replace("/usr/lib/", "/usr/lib32/")
-                try:
-                    os.unlink(filepath)
-                except OSError:
-                    pass
-
-                debug(" --> %s" % filepath)
-                shutil.copy2(os.path.join(root, _file), filepath)
-
-                # Create library symlinks if needed
-                for lib in libs:
-                    if os.path.basename(filepath).startswith(lib) and \
-                       os.path.basename(filepath) != lib:
-                        try:
-                            os.unlink(os.path.join("/usr/lib32", lib))
-                        except OSError:
-                            pass
-                        os.symlink(filepath, os.path.join("/usr/lib32", lib))
-
-        progress.setProgressValue(75)
-        progress.setLabelText("Running post installation scripts...")
-
-        if cupswrapper:
-            # Run postinstall stuff
-            os.system("%s -e &>/dev/null" % cupswrapper)
-            os.system("%s -i &>/dev/null" % cupswrapper)
+        # No way to install the drivers, quiting.
 
     # Run ldconfig in any case
     os.system("ldconfig -X &> /dev/null")
@@ -247,23 +198,19 @@ def main(args):
     if os.path.exists("/etc/pardus-release"):
         progress.setLabelText("Restarting CUPS service...")
         os.system("/bin/service -q cups restart")
-        progress.setProgressValue(90)
-
-    progress.setProgressValue(100)
-    progress.setLabelText("Done.")
+        progress.setProgressValue(100)
 
     # Close progress dialog
     progress.close()
 
-    # Cleanup
+    # Cleanup /tmp/brother-*
     if clean_up:
-        os.chdir("/tmp")
         try:
             shutil.rmtree(temp_dir)
         except OSError:
             pass
     else:
-        print temp_dir
+        debug(temp_dir)
 
 if __name__ == "__main__":
     sys.exit(main(sys.argv[1:]))
