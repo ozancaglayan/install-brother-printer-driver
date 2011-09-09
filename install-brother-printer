@@ -152,7 +152,7 @@ def main(args):
     temp_dir = tempfile.mkdtemp(prefix="brother-")
 
     # Download them
-    progress = get_progress_dbus_proxy(_("Brother Printer Driver Installer"), "")
+    progress = get_progress_dbus_proxy(_("Brother Printer Driver Installer"), ".")
 
     for url in urls:
         progress.setProgressValue(0)
