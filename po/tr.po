@@ -1,0 +1,69 @@
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+#
+# Ozan Çağlayan <ozan@pardus.org.tr>, 2011.
+msgid ""
+msgstr ""
+"Project-Id-Version: \n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2011-09-09 09:18+0300\n"
+"PO-Revision-Date: 2011-09-09 09:21+0300\n"
+"Last-Translator: Ozan Çağlayan <ozan@pardus.org.tr>\n"
+"Language-Team: Turkish <kde-i18n-doc@kde.org>\n"
+"Language: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Generator: Lokalize 1.2\n"
+
+#: install-brother-printer:68 install-brother-printer:118
+#: install-brother-printer:155
+msgid "Brother Printer Driver Installer"
+msgstr "Brother Yazıcı Kurulum Aracı"
+
+#: install-brother-printer:69
+msgid "Please select your printer model:"
+msgstr "Lütfen yazıcınızın modelini seçin:"
+
+#: install-brother-printer:79
+msgid "Can't determine model"
+msgstr "Model belirlenemedi"
+
+#: install-brother-printer:83
+msgid "List of succesfully installed files"
+msgstr "Başarıyla kurulan dosyaların listesi"
+
+#: install-brother-printer:105
+msgid "Can't show progress dialog."
+msgstr "İlerleme yüzdesi gösterilemiyor."
+
+#: install-brother-printer:119
+msgid ""
+"Getting driver list from <b><i>http://welcome.solutions.brother.com</i></b>"
+msgstr ""
+"<b><i>http://welcome.solutions.brother.com</i></b> adresinden sürücü listesi "
+"alınıyor"
+
+#: install-brother-printer:123
+#, python-format
+msgid "Error: Make sure that the URL '%s' is valid and in-use."
+msgstr "Hata: '%s' adresinin geçerli ve kullanımda olduğuna emin olun."
+
+#: install-brother-printer:125
+msgid "Generating the list of supported printers..."
+msgstr "Desteklenen yazıcıların listesi çıkartılıyor..."
+
+#: install-brother-printer:159
+#, python-format
+msgid "Downloading <b><i>%s</i></b>..."
+msgstr "<b><i>%s</i></b> indiriliyor..."
+
+#: install-brother-printer:165
+#, python-format
+msgid "Please wait while installing <b>Brother %s</b> driver..."
+msgstr "<b>Brother %s</b> sürücüsü kurulurken lütfen bekleyin..."
+
+#: install-brother-printer:211
+msgid "Restarting CUPS service..."
+msgstr "CUPS hizmeti baştan başlatılıyor..."
+
