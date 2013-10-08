@@ -1,0 +1,71 @@
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+#
+# Dimitrios Glentadakis <dglent@gmail.com>, 2013.
+msgid ""
+msgstr ""
+"Project-Id-Version: \n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2011-09-09 09:18+0300\n"
+"PO-Revision-Date: 2013-09-12 06:43+0200\n"
+"Last-Translator: Dimitrios Glentadakis <dglent@gmail.com>\n"
+"Language-Team: Greek <kde-i18n-el@kde.org>\n"
+"Language: el\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"X-Generator: Lokalize 1.5\n"
+
+#: install-brother-printer:68 install-brother-printer:118
+#: install-brother-printer:155
+msgid "Brother Printer Driver Installer"
+msgstr "Εγκαταστάτης Brother Printer Driver"
+
+#: install-brother-printer:69
+msgid "Please select your printer model:"
+msgstr "Παρακαλώ επιλέξτε το μοντέλο του εκτυπωτή σας:"
+
+#: install-brother-printer:79
+msgid "Can't determine model"
+msgstr "Αδύνατος ο προσδιορισμός του μοντέλου"
+
+#: install-brother-printer:83
+msgid "List of succesfully installed files"
+msgstr "Η λίστα των επιτυχώς εγκατεστημένων αρχείων"
+
+#: install-brother-printer:105
+msgid "Can't show progress dialog."
+msgstr "Αδύνατη η προβολή του διαλόγου προόδου."
+
+#: install-brother-printer:119
+msgid ""
+"Getting driver list from <b><i>http://welcome.solutions.brother.com</i></b>"
+msgstr ""
+"Λήψη της λίστας οδηγών από <b><i>http://welcome.solutions.brother.com</i></b>"
+
+#: install-brother-printer:123
+#, python-format
+msgid "Error: Make sure that the URL '%s' is valid and in-use."
+msgstr ""
+"Σφάλμα: Σιγουρευτείτε ότι το URL «%s» είναι έγκυρο και αν είναι σε χρήση."
+
+#: install-brother-printer:125
+msgid "Generating the list of supported printers..."
+msgstr "Δημιουργία της λίστας των υποστηριζόμενων εκτυπωτών..."
+
+#: install-brother-printer:159
+#, python-format
+msgid "Downloading <b><i>%s</i></b>..."
+msgstr "Λήψη του <b><i>%s</i></b>..."
+
+#: install-brother-printer:165
+#, python-format
+msgid "Please wait while installing <b>Brother %s</b> driver..."
+msgstr ""
+"Παρακαλώ περιμένετε για την εγκατάσταση του οδηγού <b>Brother %s</b>..."
+
+#: install-brother-printer:211
+msgid "Restarting CUPS service..."
+msgstr "Επανεκκίνηση της υπηρεσίας CUPS..."
+
